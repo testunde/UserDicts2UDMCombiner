@@ -48,23 +48,26 @@ impl FileTypeRead for AnySoftKeyboardFile {
         for el in doc
             .root()
             .children()
-            .filter(|el| el.is_element() && el.has_tag_name("AnySoftKeyboardPrefs")) // fetching 'AnySoftKeyboardPrefs' elements
+            // fetching 'AnySoftKeyboardPrefs' elements
+            .filter(|el| el.is_element() && el.has_tag_name("AnySoftKeyboardPrefs"))
             .collect::<Vec<_>>()
             .first()
             .ok_or("Missing 'AnySoftKeyboardPrefs' element".to_string())?
             .children()
-            .filter(|el| el.is_element() && el.has_tag_name("pref")) // fetching 'AnySoftKeyboardPrefs.pref' elements
+            // fetching 'AnySoftKeyboardPrefs.pref' elements
+            .filter(|el| el.is_element() && el.has_tag_name("pref"))
             .collect::<Vec<_>>()
             .first()
             .ok_or("Missing 'AnySoftKeyboardPrefs.pref' element".to_string())?
             .children()
-            .filter(|el| el.is_element() && el.has_tag_name("pref")) // fetching 'AnySoftKeyboardPrefs.pref.pref' elements
+            // fetching 'AnySoftKeyboardPrefs.pref.pref' elements
+            .filter(|el| el.is_element() && el.has_tag_name("pref"))
             .collect::<Vec<_>>()
             .first()
             .ok_or("Missing 'AnySoftKeyboardPrefs.pref.pref' element".to_string())?
             .children()
+            // fetching 'AnySoftKeyboardPrefs.pref.pref.pref' elements
             .filter(|el| el.is_element() && el.has_tag_name("pref"))
-        // fetching 'AnySoftKeyboardPrefs.pref.pref.pref' elements
         {
             // fresh record with default or empty values but language code from 'AnySoftKeyboardPrefs.pref.pref.value' element already set
             let rec: Record = Record {
@@ -162,7 +165,7 @@ impl FileTypeRead for UDMFile {
                 return Record {
                     word: fields[0].to_string(), // first field is the word
                     weight_udm: weight,
-                    _language_code: String::from(""), // no language code in UDM files (to my knowledge)
+                    _language_code: String::from(""), // no language codes are contained in UDM files (to my knowledge)
                     supplemental_data: fields[1..fields.len() - 1]
                         .iter()
                         .map(|s| s.to_string())
@@ -216,7 +219,13 @@ impl RecordProcessor {
         self.records.sort_by(|a, b| a.word.cmp(&b.word));
     }
 
-    fn remove_duplicates(&mut self) {
+    fn sort_alphabetically_case_insensitive(&mut self) {
+        self.records
+            .sort_by(|a, b| a.word.to_lowercase().cmp(&b.word.to_lowercase()));
+    }
+
+    // needs to be sorted first
+    fn remove_duplicates_case_insensitive(&mut self) {
         let len_before = self.records.len();
         self.records.dedup_by_key(|r| r.word.clone().to_lowercase());
         let len_after = self.records.len();
@@ -242,8 +251,9 @@ fn main() -> Result<(), String> {
     processor.append_records(UDMFile::read_file("udm_words_export.txt")?);
 
     // preprocess records
+    processor.sort_alphabetically_case_insensitive();
+    processor.remove_duplicates_case_insensitive();
     processor.sort_alphabetically();
-    processor.remove_duplicates();
 
     // write back merged output
     UDMFile::write_file(OUTPUT_FILE_UDM, processor.records)?;
